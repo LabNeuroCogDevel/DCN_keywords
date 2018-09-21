@@ -2,6 +2,7 @@ library(dplyr)
 library(readxl)
 library(stringr)
 library(ggplot2)
+library(tidyr)
 library(cowplot)
 
 xls <- read_xlsx("DCN_EVISE_submission_data.xlsx")
@@ -18,35 +19,40 @@ xls_date <- function(x, n=1) {
    return(x)
 }
 
-
-
-d <- xls %>%
-   mutate(year=xls_date(`SbD Date`) %>% strftime("%Y")) %>%
-   select(country=`Country Name`, year, keywoards=`Article Keywords`) %>%
-
-
-# break up keywords
-k <-
-   xls$`Article Keywords` %>%
-   strsplit("[;,]") %>% do.call(c, .) %>%
+fix_word <- function(w) {
+   w %>%
    tolower() %>%
    gsub("functional mri", "fmri", .) %>%
    gsub("event.related potentials?.*(\\(?erps?\\)?)?", "erp", .) %>%
    gsub("autism spectrum disorder", "asd", .) %>%
    gsub("^autism$", "asd", .) %>%
    gsub("brain", "", .) %>%
-   str_trim
+   str_trim # remove surrounding spaces
+}
 
+d <- xls %>%
+   mutate(year=xls_date(`SbD Date`) %>% strftime("%Y")) %>%
+   select(ref=`Article Editorial Ref`,
+          year,
+          country=`Country Name`,
+          keywords=`Article Keywords`) %>%
+   # key holds a list of words, unnest makes row per list item
+   mutate(key=strsplit(keywords, "[;,]")) %>%
+   unnest %>%
+   mutate(key=fix_word(key))
+
+
+# break up keywords
 kdf <-
-   data.frame(keyword=k) %>%
+   d %>%
    # get a count of all the keywords
-   group_by(keyword) %>% tally %>%
+   group_by(key, year) %>% tally %>%
    # show only the top
    arrange(-n)
 
-kdf %>% head(n=20) %>%
+kdf %>% filter(n>6) %>%
    # plot
    ggplot +
-   aes(x=keyword, y=n) +
-   geom_bar(stat="identity") +
+   aes(x=key, y=n, fill=year) +
+   geom_bar(stat="identity", position="dodge") +
    theme(axis.text.x = element_text(angle = 75, hjust = 1))
