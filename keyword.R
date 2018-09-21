@@ -30,12 +30,28 @@ fix_word <- function(w) {
    str_trim # remove surrounding spaces
 }
 
+# clean up data
 d <- xls %>%
    mutate(year=xls_date(`SbD Date`) %>% strftime("%Y")) %>%
    select(ref=`Article Editorial Ref`,
           year,
           country=`Country Name`,
-          keywords=`Article Keywords`) %>%
+          keywords=`Article Keywords`)
+
+# by country
+p_Country <-
+   d %>% group_by(country) %>% tally %>% filter(n>2) %>%
+   ggplot() +
+   aes(x=country, y=n) +
+   geom_bar(stat="identity") +
+   theme(axis.text.x = element_text(angle = 75, hjust = 1)) +
+   ggtitle("Countries with more than 2 publications")
+
+print(p_Country)
+
+# long format keywords
+dkey <-
+   d %>%
    # key holds a list of words, unnest makes row per list item
    mutate(key=strsplit(keywords, "[;,]")) %>%
    unnest %>%
@@ -44,15 +60,18 @@ d <- xls %>%
 
 # break up keywords
 kdf <-
-   d %>%
+   dkey %>%
    # get a count of all the keywords
    group_by(key, year) %>% tally %>%
    # show only the top
    arrange(-n)
 
-kdf %>% filter(n>6) %>%
+p_keybyyear <-
+   kdf %>% filter(n>6) %>%
    # plot
    ggplot +
    aes(x=key, y=n, fill=year) +
    geom_bar(stat="identity", position="dodge") +
    theme(axis.text.x = element_text(angle = 75, hjust = 1))
+
+print(p_keybyyear)
