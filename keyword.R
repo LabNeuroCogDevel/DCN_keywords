@@ -19,6 +19,11 @@ xls_date <- function(x, n=1) {
    return(x)
 }
 
+stemeach <- function(w) {
+   corpus::text_tokens(w, stemmer="en") %>%
+   unlist %>%
+   paste(collapse=" ", sep=" ")
+}
 fix_word <- function(w) {
    w %>%
    tolower() %>%
@@ -27,7 +32,13 @@ fix_word <- function(w) {
    gsub("autism spectrum disorder", "asd", .) %>%
    gsub("^autism$", "asd", .) %>%
    gsub("brain", "", .) %>%
-   str_trim # remove surrounding spaces
+   gsub("infan(cy|ts)", "infant", .) %>%
+   gsub("adolescent", "adolescence", .) %>%
+   gsub("social touch", "touch", .) %>%
+   str_trim
+   #%>%
+   # stem (and paste back together)
+   #Vectorize(stemeach)()
 }
 
 # clean up data
@@ -39,7 +50,7 @@ d <- xls %>%
           keywords=`Article Keywords`)
 
 # by country
-p_Country <-
+p_country <-
    d %>% group_by(country) %>% tally %>% filter(n>2) %>%
    ggplot() +
    aes(x=country, y=n) +
@@ -47,7 +58,7 @@ p_Country <-
    theme(axis.text.x = element_text(angle = 75, hjust = 1)) +
    ggtitle("Countries with more than 2 publications")
 
-print(p_Country)
+print(p_country)
 
 # long format keywords
 dkey <-
@@ -67,11 +78,19 @@ kdf <-
    arrange(-n)
 
 p_keybyyear <-
-   kdf %>% filter(n>6) %>%
+   kdf %>% filter(n>=6) %>%
    # plot
    ggplot +
    aes(x=key, y=n, fill=year) +
    geom_bar(stat="identity", position="dodge") +
-   theme(axis.text.x = element_text(angle = 75, hjust = 1))
-
+   theme(axis.text.x = element_text(angle = 75, hjust = 1)) +
+   ggtitle("Keywords >=6 mentions in a year")
 print(p_keybyyear)
+ggsave(p_keybyyear, file="keybyyear.png", width=10.8, height=5.55)
+
+#plot_grid(p_keybyyear, p_country,nrow=2)
+
+
+key_per_ref <- dkey %>% group_by(ref) %>% tally() %>% select(n_keywords=n)
+key_per_ref$n_keywords %>% summary
+ggplot(key_per_ref) + aes(x=n_keywords) + geom_density()
