@@ -68,6 +68,23 @@ dkey <-
    unnest %>%
    mutate(key=fix_word(key))
 
+# show top 20 keywords
+dkey_top <-
+  dkey %>%
+  group_by(key) %>%
+  tally %>%
+  mutate(r=rank(n)) %>%
+  filter(r<=20)
+
+p_top <- ggplot(dkey_top) +
+   aes(x=key, y=n) +
+   geom_bar(stat="identity") +
+   theme_bw()+
+   theme(axis.text.x = element_text(angle = 75, hjust = 1)) +
+   ylab("Occurances") +
+   xlab("Keyword") +
+   ggtitle("Top 20 keywords from 2015 onward")
+ggsave(p_top, file="top20.png", width=10.8, height=5.55)
 
 # break up keywords
 kdf <-
